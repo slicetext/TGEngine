@@ -1,6 +1,11 @@
-#include <iostream>
-#include <raylib.h>
+#include "engine.h"
 
-int main(int argc, char **argv) {
-    if(argc<0) std::cout<<"Please provide the project files as an argument.";
+class Player : public Engine::TextureObject {
+}player;
+
+int main() {
+    Engine::CreateWindow("Engine",400,400);
+    Engine::objectList.objects.push_back(&player);
+    Engine::MainLoop();
+    return 0;
 }
