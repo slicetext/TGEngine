@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "raylib.h"
+#include "keybinds.h"
 namespace Engine{
     class Error : public std::exception{
         private:
@@ -208,6 +209,7 @@ namespace Engine{
             Color tint=WHITE;
             TextureObject() {
                 tex=ImageTexture();
+                size=Vec2(20,20);
             }
             virtual void Draw()override{
                 Rectangle rect={float(position.x),float(position.y),float(size.x*scale.x),float(size.y*scale.y)};
