@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -154,24 +155,25 @@ namespace Engine{
         public:
             Vec2 position;
             CircularNumber rotation=CircularNumber(0);
-            Vec2 size;
-            Vec2 scale;
-            void Start() {}
-            void Update() {}
-            void Draw() {}
+            Vec2 size=Vec2(1,1);
+            Vec2 scale=Vec2(1,1);
+            virtual void Start() {}
+            virtual void Update(float DeltaTime) {}
+            virtual void Draw() {}
     };
     class ImageTexture {
         private:
-            Image image;
+            Image image=GenImageColor(40, 40, MAGENTA);
             Texture2D texture;
+            bool texture_loaded=false;
         public:
             ImageTexture(std::string path) {
                 image=LoadImage(path.c_str());
-                texture=LoadTextureFromImage(image);
+                texture_loaded=false;
             }
             ImageTexture() {
-                image=GenImageColor(40, 40, MAGENTA);
-                texture=LoadTextureFromImage(image);
+                image=GenImageColor(60, 60, MAGENTA);
+                texture_loaded=false;
             }
             operator Texture2D() {
                 return texture;
@@ -179,19 +181,25 @@ namespace Engine{
             operator Image() {
                 return image;
             }
-            Image GetImage() {
+            Image& GetImage() {
                 return image;
             }
-            Texture2D GetTexture() {
+            Texture2D& GetTexture() {
+                if(texture_loaded==false) {
+                    texture=LoadTextureFromImage(image);
+                    texture_loaded=true;
+                }
                 return texture;
             }
             void Set(Image img) {
                 image=img;
                 texture=LoadTextureFromImage(image);
+                texture_loaded=true;
             }
             void Set(Texture2D tex) {
                 texture=tex;
                 image=LoadImageFromTexture(texture);
+                texture_loaded=true;
             }
     };
     class TextureObject : public Object {
@@ -201,10 +209,10 @@ namespace Engine{
             TextureObject() {
                 tex=ImageTexture();
             }
-            void Draw(){
+            virtual void Draw()override{
                 Rectangle rect={float(position.x),float(position.y),float(size.x*scale.x),float(size.y*scale.y)};
                 NPatchInfo n={};
-                DrawTextureNPatch(tex, NPatchInfo(), rect, Vector2{0,0}, rotation, tint);
+                DrawTextureNPatch(tex.GetTexture(), NPatchInfo(), rect, Vector2{0,0}, rotation, tint);
             }
     };
     const std::string RESET_COLOR    = "\033[0m";
@@ -216,14 +224,17 @@ namespace Engine{
 
     void MainLoop() {
         try {
+            for(auto& i: objectList.objects) {
+                i->Start();
+            }
             while(!WindowShouldClose()) {
                 BeginDrawing();
                 ClearBackground(RAYWHITE);
-                EndDrawing();
-                for(Object* i: objectList.objects) {
-                    i->Update();
+                for(auto& i: objectList.objects) {
+                    i->Update(GetFrameTime());
                     i->Draw();
                 }
+                EndDrawing();
             }
             CloseWindow();
         }catch(Error e) {
@@ -232,5 +243,6 @@ namespace Engine{
     }
     void CreateWindow(std::string name, int screen_width, int screen_height) {
         InitWindow(screen_width,screen_height,"Engine");
+        SetTargetFPS(60);
     }
 }
