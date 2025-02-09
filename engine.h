@@ -1,21 +1,25 @@
 #pragma once
+#include <cmath>
+#include <cstddef>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
+#include <unordered_map>
 #include <vector>
+#include "include/collision.h"
+#include "include/id.h"
+#include "include/math_functions.h"
 #include "raylib.h"
 #include "keybinds.h"
+#include "include/box2d.h"
+#include "include/base.h"
+#include "include/types.h"
+#include "include/math_functions.h"
+
 namespace Engine{
-    class Error : public std::exception{
-        private:
-            const std::string msg;
-        public:
-            Error(std::string message) : msg(message) {}
-            const char* what() {
-                return msg.c_str();
-            }
-    };
     class CircularNumber{
         private:
             double range=360;
@@ -148,19 +152,110 @@ namespace Engine{
                 break;
             }
         }
-        Vector2 toRaylibVector2() {
+        Vec2 normalized() {
+            return Vec2(x/std::abs(x),y/std::abs(y));
+        }
+        double dot(Vec2 &d) {
+            double product=0;
+            product=x*d[0];
+            product+=y*d[1];
+            return product;
+        }
+        Vec2 rotated(CircularNumber degrees) {
+            double rads=degrees.num * (PI / 180);
+            double cs=cos(rads);
+            double sn=sin(rads);
+            double px = x * cs - y * sn;
+            double py = x * sn + y * cs;
+            return Vec2(px,py);
+        }
+        operator Vector2() {
             return Vector2 {float(x),float(y)};
         }
+        operator b2Vec2() {
+            return b2Vec2{float(x),float(y)};
+        }
     };
+    class Component;
     class Object {
+        private:
+            Vec2 position_old=Vec2(0,0);
         public:
+            bool visible=true;
             Vec2 position;
             CircularNumber rotation=CircularNumber(0);
             Vec2 size=Vec2(1,1);
             Vec2 scale=Vec2(1,1);
+            std::vector<Object*> children;
+            std::vector<Component*> components;
             virtual void Start() {}
             virtual void Update(float DeltaTime) {}
+            virtual void UpdateComponents();
             virtual void Draw() {}
+            void UpdateChildren() {
+                Vec2 change=position-position_old;
+                for(auto i : children) {
+                    i->position=i->position+change;
+                    i->UpdateChildren();
+                }
+            }
+            template<typename T> T* GetComponent() {
+                for(int i=0; i<components.size(); i++) {
+                    if(dynamic_cast<T*>(components[i]) != nullptr) {
+                        // static_assert(std::is_base_of<Component*, T*>::i, "Get Component failed");
+                        return dynamic_cast<T*>(components[i]);
+                    }
+                }
+                return nullptr;
+            }
+    };
+    class Component {
+        public:
+            virtual void Box2dSceneInit(b2WorldId b, Object* obj) {}
+            virtual void UpdateComponent(Object* obj) {}
+            // Component specific
+            // virtual void ApplyForce(Vec2 impulse) {}
+            // virtual void ApplyRotation(float torque) {}
+            // virtual void SetAngularDamping(float damping) {}
+            // virtual void SetLinearDamping(float damping) {}
+    };
+    inline void Object::UpdateComponents() {
+        for(auto i : components) {
+            i->UpdateComponent(this);
+        }
+    }
+    class DynamicBody : public Component {
+        public:
+            b2BodyId bodyID;
+            void UpdateComponent(Object* obj)override {
+                b2Vec2 p = b2Body_GetWorldPoint(bodyID, {(float)(obj->size*obj->scale).x/10,(float)(obj->size*obj->scale).y/10});
+                b2Rot rotation = b2Body_GetRotation(bodyID);
+                float radians = b2Rot_GetAngle(rotation);
+                obj->position=Vec2(p.x,p.y);
+                obj->rotation=radians * RAD2DEG;
+            }
+            void Box2dSceneInit(b2WorldId id, Object* obj)override{
+                b2BodyDef b=b2DefaultBodyDef();
+                b.type = b2_dynamicBody;
+                b.position=obj->position;
+                b.rotation.s=obj->rotation.num * DEG2RAD;
+                bodyID=b2CreateBody(id, &b);
+                b2ShapeDef shapeDef = b2DefaultShapeDef();
+                b2Polygon polygon=b2MakeBox((obj->size*obj->scale/20).x,(obj->size*obj->scale/20).y);
+                b2CreatePolygonShape(bodyID, &shapeDef, &polygon);
+            }
+            void ApplyForce(Vec2 impulse){
+                b2Body_ApplyForceToCenter(bodyID, impulse, true);
+            }
+            void ApplyRotation(float torque){
+                b2Body_ApplyTorque(bodyID, torque, true);
+            }
+            void SetAngularDamping(float damping){
+                b2Body_SetAngularDamping(bodyID, damping);
+            }
+            void SetLinearDamping(float damping){
+                b2Body_SetLinearDamping(bodyID, damping);
+            }
     };
     class ImageTexture {
         private:
@@ -217,34 +312,72 @@ namespace Engine{
                 DrawTextureNPatch(tex.GetTexture(), NPatchInfo(), rect, Vector2{0,0}, rotation, tint);
             }
     };
-    const std::string RESET_COLOR    = "\033[0m";
-    const std::string ERROR_COLOR    = "\033[1;31m";
+    class Cam {
+        public:
+            Vec2 target;
+            CircularNumber rotation;
+            float zoom;
+            Cam() : rotation(CircularNumber(0)), target(Vec2(0,0)), zoom(1) {}
+            operator Camera2D() {
+                return Camera2D{Vector2{0,0},target,float(rotation.num),zoom};
+            }
+    };
 
-    struct ObjectList{
-        std::vector<Object*> objects;
-    } objectList;
+    struct Scene{
+        std::vector<Object*> objects={};
+        Color bgColor=WHITE;
+        Cam camera=Cam();
+        b2WorldId worldID;
+        Scene() {
+            b2WorldDef worlddef=b2DefaultWorldDef();
+            worldID=b2CreateWorld(&worlddef);
+        }
+        void addObject(Object* obj) {
+            objects.push_back(obj);
+            objects.back()->Start();
+            for(auto i : obj->components) {
+                i->Box2dSceneInit(worldID,obj);
+            }
+        }
+        template<typename T> void setProperty(std::string property, T value) {
+            if(property=="gravity") {
+                b2World_SetGravity(worldID, value);
+            }
+        }
+        void load();
+    };
+    Scene currentScene;
+
+
+    inline void Scene::load() {
+        currentScene=*this;
+    }
 
     void MainLoop() {
-        try {
-            for(auto& i: objectList.objects) {
-                i->Start();
-            }
-            while(!WindowShouldClose()) {
-                BeginDrawing();
-                ClearBackground(RAYWHITE);
-                for(auto& i: objectList.objects) {
-                    i->Update(GetFrameTime());
+        while(!WindowShouldClose()) {
+            BeginDrawing();
+            BeginMode2D(currentScene.camera);
+            ClearBackground(currentScene.bgColor);
+            b2World_Step(currentScene.worldID, GetFrameTime(), 4);
+            for(int j=0; j<currentScene.objects.size(); j++) {
+                auto i=currentScene.objects[j];
+                i->UpdateComponents();
+                i->Update(GetFrameTime());
+                i->UpdateChildren();
+                if(i->visible)
                     i->Draw();
-                }
-                EndDrawing();
             }
-            CloseWindow();
-        }catch(Error e) {
-            std::cout<<ERROR_COLOR<<e.what()<<RESET_COLOR<<std::endl;
+            EndDrawing();
         }
+        for(auto i : currentScene.objects) {
+            delete i;
+        }
+        CloseWindow();
     }
     void CreateWindow(std::string name, int screen_width, int screen_height) {
         InitWindow(screen_width,screen_height,"Engine");
         SetTargetFPS(60);
+
+        b2SetLengthUnitsPerMeter(10);
     }
 }
