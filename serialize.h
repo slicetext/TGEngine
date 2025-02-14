@@ -1,3 +1,4 @@
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -10,7 +11,7 @@ namespace Engine {
         public:
             void Serialize(std::unordered_map<std::string, std::string> map) {
                 for(auto i : map) {
-                    data=data+i.first+": "+i.second+"\n";
+                    data=data+i.first+":"+i.second+"\n";
                 }
             }
             std::unordered_map<std::string, std::string> Deserialize() {
@@ -34,6 +35,11 @@ namespace Engine {
             std::string GetValue(std::string value) {
                 auto d=Deserialize();
                 return d[value];
+            }
+            void WriteToFile(std::string file_name) {
+                std::ofstream f(file_name.c_str());
+                f<<data.c_str();
+                f.close();
             }
     };
 }
