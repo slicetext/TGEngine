@@ -228,7 +228,8 @@ namespace Engine{
         public:
             b2BodyId bodyID;
             void UpdateComponent(Object* obj)override {
-                b2Vec2 p = b2Body_GetWorldPoint(bodyID, {(float)(obj->size*obj->scale).x/10,(float)(obj->size*obj->scale).y/10});
+                // b2Vec2 p = b2Body_GetWorldPoint(bodyID, {(float)-(obj->size*obj->scale).x/20,(float)-(obj->size*obj->scale).y/20});
+                b2Vec2 p = b2Body_GetWorldPoint(bodyID, {0,0});
                 b2Rot rotation = b2Body_GetRotation(bodyID);
                 float radians = b2Rot_GetAngle(rotation);
                 obj->position=Vec2(p.x,p.y);
@@ -241,7 +242,33 @@ namespace Engine{
                 b.rotation.s=obj->rotation.num * DEG2RAD;
                 bodyID=b2CreateBody(id, &b);
                 b2ShapeDef shapeDef = b2DefaultShapeDef();
-                b2Polygon polygon=b2MakeBox((obj->size*obj->scale/20).x,(obj->size*obj->scale/20).y);
+                b2Polygon polygon=b2MakeBox((obj->size*obj->scale/2).x,(obj->size*obj->scale/2).y);
+                b2CreatePolygonShape(bodyID, &shapeDef, &polygon);
+            }
+            void ApplyForce(Vec2 impulse){
+                b2Body_ApplyForceToCenter(bodyID, impulse*100, true);
+            }
+            void ApplyRotation(float torque){
+                b2Body_ApplyTorque(bodyID, torque, true);
+            }
+            void SetAngularDamping(float damping){
+                b2Body_SetAngularDamping(bodyID, damping);
+            }
+            void SetLinearDamping(float damping){
+                b2Body_SetLinearDamping(bodyID, damping);
+            }
+    };
+    class StaticBody : public Component {
+        public:
+            b2BodyId bodyID;
+            void Box2dSceneInit(b2WorldId id, Object* obj)override{
+                b2BodyDef b=b2DefaultBodyDef();
+                b.type = b2_staticBody;
+                b.position=obj->position;
+                b.rotation.s=obj->rotation.num * DEG2RAD;
+                bodyID=b2CreateBody(id, &b);
+                b2ShapeDef shapeDef = b2DefaultShapeDef();
+                b2Polygon polygon=b2MakeBox((obj->size*obj->scale/2).x,(obj->size*obj->scale/2).y);
                 b2CreatePolygonShape(bodyID, &shapeDef, &polygon);
             }
             void ApplyForce(Vec2 impulse){
