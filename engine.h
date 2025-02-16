@@ -6,8 +6,6 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <type_traits>
-#include <unordered_map>
 #include <vector>
 #include "include/collision.h"
 #include "include/id.h"
@@ -18,8 +16,23 @@
 #include "include/base.h"
 #include "include/types.h"
 #include "include/math_functions.h"
+#include <chrono>
 
 namespace Engine{
+    struct ProfileTimer{
+        std::chrono::time_point<std::chrono::high_resolution_clock> start,end;
+        const char* name;
+        ProfileTimer(const char* name) : name(name) {
+            start=std::chrono::high_resolution_clock::now();
+        }
+        ~ProfileTimer() {
+            end=std::chrono::high_resolution_clock::now();
+            auto duration=end.time_since_epoch()-start.time_since_epoch();
+            auto t_duration = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+            auto s_duration = t_duration/1000.0f;
+            std::cout<<"\033[1;106;30m"<<name<<": "<<t_duration<<"ms"<<" ("<<s_duration<<"s)\033[0m"<<std::endl;
+        }
+    };
     class CircularNumber{
         private:
             double range=360;
@@ -208,6 +221,9 @@ namespace Engine{
                 }
                 return nullptr;
             }
+            template<typename T> void AddComponent() {
+                components.emplace_back(new T);
+            }
     };
     class Component {
         public:
@@ -242,7 +258,7 @@ namespace Engine{
                 b.rotation.s=obj->rotation.num * DEG2RAD;
                 bodyID=b2CreateBody(id, &b);
                 b2ShapeDef shapeDef = b2DefaultShapeDef();
-                b2Polygon polygon=b2MakeBox((obj->size*obj->scale/2).x,(obj->size*obj->scale/2).y);
+                b2Polygon polygon=b2MakeBox((obj->size*obj->scale).x/2,(obj->size*obj->scale).y/2);
                 b2CreatePolygonShape(bodyID, &shapeDef, &polygon);
             }
             void ApplyForce(Vec2 impulse){
@@ -268,7 +284,7 @@ namespace Engine{
                 b.rotation.s=obj->rotation.num * DEG2RAD;
                 bodyID=b2CreateBody(id, &b);
                 b2ShapeDef shapeDef = b2DefaultShapeDef();
-                b2Polygon polygon=b2MakeBox((obj->size*obj->scale/2).x,(obj->size*obj->scale/2).y);
+                b2Polygon polygon=b2MakeBox((obj->size*obj->scale).x/2,(obj->size*obj->scale).y/2);
                 b2CreatePolygonShape(bodyID, &shapeDef, &polygon);
             }
             void ApplyForce(Vec2 impulse){
@@ -290,8 +306,8 @@ namespace Engine{
             Texture2D texture;
             bool texture_loaded=false;
         public:
-            ImageTexture(std::string path) {
-                image=LoadImage(path.c_str());
+            ImageTexture(const char* path) {
+                image=LoadImage(path);
                 texture_loaded=false;
             }
             ImageTexture() {
@@ -360,7 +376,7 @@ namespace Engine{
             worldID=b2CreateWorld(&worlddef);
         }
         void addObject(Object* obj) {
-            objects.push_back(obj);
+            objects.emplace_back(obj);
             objects.back()->Start();
             for(auto i : obj->components) {
                 i->Box2dSceneInit(worldID,obj);
@@ -401,10 +417,10 @@ namespace Engine{
         }
         CloseWindow();
     }
-    void CreateWindow(std::string name, int screen_width, int screen_height) {
-        InitWindow(screen_width,screen_height,"Engine");
+    void CreateWindow(const char* name, int screen_width, int screen_height) {
+        ProfileTimer t("Create Window");
+        InitWindow(screen_width,screen_height,name);
         SetTargetFPS(60);
-
         b2SetLengthUnitsPerMeter(10);
     }
 }
