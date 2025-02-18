@@ -382,6 +382,14 @@ namespace Engine{
                 i->Box2dSceneInit(worldID,obj);
             }
         }
+        template<typename T> void addObject() {
+            T* t=new T;
+            objects.emplace_back(t);
+            objects.back()->Start();
+            for(auto i : t->components) {
+                i->Box2dSceneInit(worldID,t);
+            }
+        }
         template<typename T> void setProperty(std::string property, T value) {
             if(property=="gravity") {
                 b2World_SetGravity(worldID, value);
