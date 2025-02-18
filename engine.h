@@ -244,8 +244,8 @@ namespace Engine{
         public:
             b2BodyId bodyID;
             void UpdateComponent(Object* obj)override {
-                // b2Vec2 p = b2Body_GetWorldPoint(bodyID, {(float)-(obj->size*obj->scale).x/20,(float)-(obj->size*obj->scale).y/20});
-                b2Vec2 p = b2Body_GetWorldPoint(bodyID, {0,0});
+                b2Vec2 p = b2Body_GetWorldPoint(bodyID, {(float)-(obj->size*obj->scale).x/20,(float)-(obj->size*obj->scale).y/20});
+                // b2Vec2 p = b2Body_GetWorldPoint(bodyID, {0,0});
                 b2Rot rotation = b2Body_GetRotation(bodyID);
                 float radians = b2Rot_GetAngle(rotation);
                 obj->position=Vec2(p.x,p.y);
@@ -254,18 +254,18 @@ namespace Engine{
             void Box2dSceneInit(b2WorldId id, Object* obj)override{
                 b2BodyDef b=b2DefaultBodyDef();
                 b.type = b2_dynamicBody;
-                b.position=obj->position;
+                b.position=obj->position+(obj->scale*obj->scale)/40;
                 b.rotation.s=obj->rotation.num * DEG2RAD;
                 bodyID=b2CreateBody(id, &b);
                 b2ShapeDef shapeDef = b2DefaultShapeDef();
-                b2Polygon polygon=b2MakeBox((obj->size*obj->scale).x/2,(obj->size*obj->scale).y/2);
+                b2Polygon polygon=b2MakeBox((obj->size*obj->scale).x/4,(obj->size*obj->scale).y/4);
                 b2CreatePolygonShape(bodyID, &shapeDef, &polygon);
             }
             void ApplyForce(Vec2 impulse){
                 b2Body_ApplyForceToCenter(bodyID, impulse*100, true);
             }
             void ApplyRotation(float torque){
-                b2Body_ApplyTorque(bodyID, torque, true);
+                b2Body_ApplyTorque(bodyID, torque*100, true);
             }
             void SetAngularDamping(float damping){
                 b2Body_SetAngularDamping(bodyID, damping);
@@ -396,19 +396,22 @@ namespace Engine{
         currentScene=*this;
     }
 
-    void MainLoop() {
+    inline void MainLoop() {
         while(!WindowShouldClose()) {
             BeginDrawing();
-            BeginMode2D(currentScene.camera);
-            ClearBackground(currentScene.bgColor);
-            b2World_Step(currentScene.worldID, GetFrameTime(), 4);
-            for(int j=0; j<currentScene.objects.size(); j++) {
-                auto i=currentScene.objects[j];
-                i->UpdateComponents();
-                i->Update(GetFrameTime());
-                i->UpdateChildren();
-                if(i->visible)
-                    i->Draw();
+            {
+                ProfileTimer t("Update");
+                BeginMode2D(currentScene.camera);
+                ClearBackground(currentScene.bgColor);
+                b2World_Step(currentScene.worldID, GetFrameTime(), 4);
+                for(int j=0; j<currentScene.objects.size(); j++) {
+                    auto i=currentScene.objects[j];
+                    i->UpdateComponents();
+                    i->Update(GetFrameTime());
+                    i->UpdateChildren();
+                    if(i->visible)
+                        i->Draw();
+                }
             }
             EndDrawing();
         }
@@ -417,7 +420,7 @@ namespace Engine{
         }
         CloseWindow();
     }
-    void CreateWindow(const char* name, int screen_width, int screen_height) {
+    inline void CreateWindow(const char* name, int screen_width, int screen_height) {
         ProfileTimer t("Create Window");
         InitWindow(screen_width,screen_height,name);
         SetTargetFPS(60);
