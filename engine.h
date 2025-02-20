@@ -126,13 +126,10 @@ namespace Engine{
             }
     };
     struct Vec2{
-        double x=0;
-        double y=0;
-        Vec2(float xpos,float ypos){
-            x=xpos;
-            y=ypos;
-        }
-        Vec2() {}
+        double x;
+        double y;
+        Vec2(float x,float y) : x(x), y(y) {}
+        Vec2() : x(0), y(0) {}
         Vec2 operator+(const Vec2 &v) {
             return Vec2(x+v.x,y+v.y);
         }
@@ -306,14 +303,8 @@ namespace Engine{
             Texture2D texture;
             bool texture_loaded=false;
         public:
-            ImageTexture(const char* path) {
-                image=LoadImage(path);
-                texture_loaded=false;
-            }
-            ImageTexture() {
-                image=GenImageColor(60, 60, MAGENTA);
-                texture_loaded=false;
-            }
+            ImageTexture(const char* path) : image(LoadImage(path)), texture_loaded(false) {}
+            ImageTexture() : image(GenImageColor(60, 60, MAGENTA)), texture_loaded(false) {}
             operator Texture2D() {
                 return texture;
             }
@@ -345,8 +336,7 @@ namespace Engine{
         public:
             ImageTexture tex;
             Color tint=WHITE;
-            TextureObject() {
-                tex=ImageTexture();
+            TextureObject() : tex(ImageTexture()) {
                 size=Vec2(20,20);
             }
             virtual void Draw()override{
@@ -390,18 +380,25 @@ namespace Engine{
                 i->Box2dSceneInit(worldID,t);
             }
         }
-        template<typename T> void setProperty(std::string property, T value) {
-            if(property=="gravity") {
+        enum class PROPERTY {
+            GRAVITY
+        };
+        template<typename T> void setProperty(PROPERTY property, T value) {
+            if(property==PROPERTY::GRAVITY) {
                 b2World_SetGravity(worldID, value);
             }
         }
         void load();
     };
-    Scene currentScene;
+    struct Root{
+        static Scene CurrentScene;
+        Root()=delete;
+    };
+    Scene Root::CurrentScene;
 
 
     inline void Scene::load() {
-        currentScene=*this;
+        Root::CurrentScene=*this;
     }
 
     inline void MainLoop() {
@@ -409,11 +406,11 @@ namespace Engine{
             BeginDrawing();
             {
                 ProfileTimer t("Update");
-                BeginMode2D(currentScene.camera);
-                ClearBackground(currentScene.bgColor);
-                b2World_Step(currentScene.worldID, GetFrameTime(), 4);
-                for(int j=0; j<currentScene.objects.size(); j++) {
-                    auto i=currentScene.objects[j];
+                BeginMode2D(Root::CurrentScene.camera);
+                ClearBackground(Root::CurrentScene.bgColor);
+                b2World_Step(Root::CurrentScene.worldID, GetFrameTime(), 4);
+                for(int j=0; j<Root::CurrentScene.objects.size(); j++) {
+                    auto i=Root::CurrentScene.objects[j];
                     i->UpdateComponents();
                     i->Update(GetFrameTime());
                     i->UpdateChildren();
@@ -423,7 +420,7 @@ namespace Engine{
             }
             EndDrawing();
         }
-        for(auto i : currentScene.objects) {
+        for(auto i : Root::CurrentScene.objects) {
             delete i;
         }
         CloseWindow();
