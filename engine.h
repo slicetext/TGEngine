@@ -28,8 +28,8 @@ namespace Engine{
         ~ProfileTimer() {
             end=std::chrono::high_resolution_clock::now();
             auto duration=end.time_since_epoch()-start.time_since_epoch();
-            auto t_duration = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-            auto s_duration = t_duration/1000.0f;
+            auto t_duration = std::chrono::duration_cast<std::chrono::microseconds>(duration).count() / 1000.0f;
+            auto s_duration = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() / 1000.0f;
             std::cout<<"\033[1;106;30m"<<name<<": "<<t_duration<<"ms"<<" ("<<s_duration<<"s)\033[0m"<<std::endl;
         }
     };
@@ -115,7 +115,7 @@ namespace Engine{
             explicit operator double*() {
                 return &num;
             }
-            CircularNumber distance(CircularNumber &other, DISTANCE direction=DISTANCE::SHORTEST) {
+            CircularNumber distance(CircularNumber &other, DISTANCE direction=DISTANCE::SHORTEST)const{
                 CircularNumber result1=other-CircularNumber(num);
                 CircularNumber result2=CircularNumber(num)-other;
                 if(direction==DISTANCE::SHORTEST)
@@ -130,25 +130,25 @@ namespace Engine{
         double y;
         Vec2(float x,float y) : x(x), y(y) {}
         Vec2() : x(0), y(0) {}
-        Vec2 operator+(const Vec2 &v) {
+        Vec2 operator+(const Vec2 &v) const{
             return Vec2(x+v.x,y+v.y);
         }
-        Vec2 operator-(const Vec2 &v) {
+        Vec2 operator-(const Vec2 &v) const{
             return Vec2(x-v.x,y-v.y);
         }
-        Vec2 operator*(const Vec2 &v) {
+        Vec2 operator*(const Vec2 &v) const{
             return Vec2(x*v.x,y*v.y);
         }
-        Vec2 operator/(const Vec2 &v) {
+        Vec2 operator/(const Vec2 &v) const{
             return Vec2(x/v.x,y/v.y);
         }
-        Vec2 operator*(const double &d) {
+        Vec2 operator*(const double &d) const{
             return Vec2(x*d,y*d);
         }
-        Vec2 operator/(const double &d) {
+        Vec2 operator/(const double &d) const{
             return Vec2(x/d,y/d);
         }
-        double operator[](const int &i) {
+        double operator[](const int &i) const{
             switch (i) {
             case 0:
                 return x;
@@ -209,7 +209,7 @@ namespace Engine{
                     i->UpdateChildren();
                 }
             }
-            template<typename T> T* GetComponent() {
+            template<typename T> T* GetComponent()const{
                 for(int i=0; i<components.size(); i++) {
                     if(dynamic_cast<T*>(components[i]) != nullptr) {
                         // static_assert(std::is_base_of<Component*, T*>::i, "Get Component failed");
