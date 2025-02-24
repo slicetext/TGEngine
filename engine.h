@@ -226,11 +226,6 @@ namespace Engine{
         public:
             virtual void Box2dSceneInit(b2WorldId b, Object* obj) {}
             virtual void UpdateComponent(Object* obj) {}
-            // Component specific
-            // virtual void ApplyForce(Vec2 impulse) {}
-            // virtual void ApplyRotation(float torque) {}
-            // virtual void SetAngularDamping(float damping) {}
-            // virtual void SetLinearDamping(float damping) {}
     };
     inline void Object::UpdateComponents() {
         for(auto i : components) {
@@ -365,14 +360,14 @@ namespace Engine{
             b2WorldDef worlddef=b2DefaultWorldDef();
             worldID=b2CreateWorld(&worlddef);
         }
-        void addObject(Object* obj) {
+        void AddObject(Object* obj) {
             objects.emplace_back(obj);
             objects.back()->Start();
             for(auto i : obj->components) {
                 i->Box2dSceneInit(worldID,obj);
             }
         }
-        template<typename T> void addObject() {
+        template<typename T> void AddObject() {
             T* t=new T;
             objects.emplace_back(t);
             objects.back()->Start();
@@ -381,23 +376,24 @@ namespace Engine{
             }
         }
         enum class PROPERTY {
-            GRAVITY
+            GRAVITY,
         };
         template<typename T> void setProperty(PROPERTY property, T value) {
             if(property==PROPERTY::GRAVITY) {
                 b2World_SetGravity(worldID, value);
             }
         }
-        void load();
+        void Load();
     };
     struct Root{
         static Scene CurrentScene;
+        // std::vector<std::string> TextureList;
         Root()=delete;
     };
     Scene Root::CurrentScene;
 
 
-    inline void Scene::load() {
+    inline void Scene::Load() {
         Root::CurrentScene=*this;
     }
 
