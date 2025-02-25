@@ -186,6 +186,7 @@ namespace Engine{
             return b2Vec2{float(x),float(y)};
         }
     };
+    std::vector<const char*> signals;
     class Component;
     class Object {
         private:
@@ -221,6 +222,10 @@ namespace Engine{
             template<typename T> void AddComponent() {
                 components.emplace_back(new T);
             }
+            void EmitSignal(const char* signal) {
+                signals.push_back(signal);
+            }
+            virtual void RecieveSignal(std::string signal) {}
     };
     class Component {
         public:
@@ -405,6 +410,12 @@ namespace Engine{
                 BeginMode2D(Root::CurrentScene.camera);
                 ClearBackground(Root::CurrentScene.bgColor);
                 b2World_Step(Root::CurrentScene.worldID, GetFrameTime(), 4);
+                for(int i=signals.size()-1; i>=0; i--) {
+                    for(auto j : Root::CurrentScene.objects) {
+                        j->RecieveSignal(signals[i]);
+                    }
+                    signals.pop_back();
+                }
                 for(int j=0; j<Root::CurrentScene.objects.size(); j++) {
                     auto i=Root::CurrentScene.objects[j];
                     i->UpdateComponents();
